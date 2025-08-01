@@ -1,64 +1,83 @@
 
-# Gen-Lib Admin Dashboard (React + Tailwind + Firebase)
+* **Option A:** Simple username/password (local validation)
+* **Option B:** Firebase Authentication (Google Sign-In)
 
-This project is a **modern admin dashboard** for Gen-Lib.
-It is built entirely with React, Tailwind CSS, and Framer Motion for smooth animations.
-
-Admins can log in (Firebase authentication with Gmail), view library stats, approve requests, and see recent activity – all in a clean, interactive web dashboard.
+This way, anyone (or Copilot) can choose which login flow to use.
 
 ---
 
-## 1. Features
+````markdown
+# Gen-Lib Admin Dashboard
 
-- **Modern, clean design**
-  - Light colors, responsive layout
-  - Animated cards and transitions
-- **Pages**
-  - Dashboard (stats + recent activity)
-  - Books
+This project is a **Library Admin Dashboard** built with React, Tailwind CSS, and Framer Motion.  
+It shows a login page first, and only after successful login it displays the full admin dashboard.
+
+You can set it up with:
+- **Option A: Simple local username/password**
+- **Option B: Firebase Authentication (Google Sign-In)**
+
+---
+
+## Features
+
+- **Login flow**
+  - Choose between simple local login or Firebase Auth
+  - Unauthorized users cannot see the dashboard
+- **Dashboard**
+  - Total Books
   - Pending Requests
   - Processed Requests
   - Penalties
-  - Users
-- **Firebase Integration**
-  - Firebase Authentication (Email/Password + Gmail)
-  - Firestore for real-time data
-- **Animations**
-  - Smooth fade-in, hover effects, and page transitions using Framer Motion
+  - Active Users
+  - Recent Activity
+- **Modern design**
+  - Tailwind CSS for responsive layout
+  - Framer Motion for smooth animations
+- **Ready to extend**
+  - Add Books, Pending, Processed, Penalties, Users pages
 
 ---
 
-## 2. Tech Stack
+## Tech Stack
 
-- React (Create React App)
-- Tailwind CSS (styling)
-- Framer Motion (animations)
-- Firebase (backend)
+- React
+- Tailwind CSS
+- Framer Motion
+- React Router DOM
+- (Optional) Firebase Authentication
 
 ---
 
-## 3. Project Setup
+## 1. Project Setup
 
-### 1. Create React App
+### Create React App
 
 ```bash
 npx create-react-app genlib_admin
 cd genlib_admin
 ````
 
-### 2. Install dependencies
+---
+
+### Install dependencies
 
 ```bash
 npm install -D tailwindcss postcss autoprefixer
 npx tailwindcss init -p
-npm install framer-motion firebase react-router-dom
+npm install framer-motion react-router-dom
+```
+
+For Firebase (only if using Option B):
+
+```bash
+npm install firebase
 ```
 
 ---
 
-## 4. Tailwind Configuration
+### Configure Tailwind
 
-Edit **tailwind.config.js** to include:
+Edit **tailwind.config.js**:
 
 ```javascript
 module.exports = {
@@ -68,7 +87,7 @@ module.exports = {
 };
 ```
 
-Replace all content of **src/index.css** with:
+Replace **src/index.css** with:
 
 ```css
 @tailwind base;
@@ -76,26 +95,97 @@ Replace all content of **src/index.css** with:
 @tailwind utilities;
 ```
 
-Remove `App.css` and any `import './App.css'` lines.
+Remove `import './App.css'` from App.js.
 
 ---
 
-## 5. Firebase Setup
+## 2. Folder Structure
 
-1. Go to [Firebase Console](https://console.firebase.google.com/).
-2. Create a project or use an existing one.
-3. Enable:
+```
+src/
+  pages/
+    Login.js
+    Dashboard.js
+  components/
+    Header.js
+  firebase.js (only for Option B)
+  App.js
+  index.js
+```
 
-   * **Authentication** (Email/Password and Google)
-   * **Cloud Firestore**
-4. Add a **Web app** and copy your config.
+---
 
-Create a file **src/firebase.js**:
+## 3. Option A – Local Username/Password Login
+
+Create **src/pages/Login.js**:
+
+```javascript
+import { useState } from "react";
+
+export default function Login({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Local validation
+    if (username === "admin" && password === "password123") {
+      onLogin();
+    } else {
+      setError("Invalid username or password");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="bg-white shadow-lg rounded-xl p-8 w-80">
+        <h1 className="text-2xl font-bold mb-6 text-center">Library Admin</h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Username"
+            className="w-full border p-2 rounded"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="w-full border p-2 rounded"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700"
+          >
+            Login
+          </button>
+        </form>
+        {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## 4. Option B – Firebase Authentication (Google Sign-In)
+
+### Set up Firebase
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a project or use existing
+3. Enable Authentication > Sign-in method > Google
+4. Get the Firebase config from project settings
+
+Create **src/firebase.js**:
 
 ```javascript
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "YOUR_KEY",
@@ -109,18 +199,58 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
-export const db = getFirestore(app);
+export const signInWithGoogle = () => signInWithPopup(auth, provider);
+```
+
+Replace **src/pages/Login.js** with:
+
+```javascript
+import { useState } from "react";
+import { signInWithGoogle, auth } from "../firebase";
+
+export default function Login({ onLogin }) {
+  const [error, setError] = useState("");
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithGoogle();
+      const email = result.user.email;
+      const allowed = ["admin@grietcollege.com"]; // whitelist
+      if (allowed.includes(email)) {
+        onLogin();
+      } else {
+        setError("You are not authorized.");
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      <div className="bg-white shadow-lg rounded-xl p-8 w-80">
+        <h1 className="text-2xl font-bold mb-6 text-center">Library Admin</h1>
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700"
+        >
+          Sign in with Google
+        </button>
+        {error && <p className="mt-4 text-red-500 text-center">{error}</p>}
+      </div>
+    </div>
+  );
+}
 ```
 
 ---
 
-## 6. Replace `src/App.js`
+## 5. Dashboard
 
-Replace everything in **src/App.js** with:
+Create **src/pages/Dashboard.js**:
 
 ```javascript
 import { motion } from "framer-motion";
-import "./index.css";
 
 const stats = [
   { label: "Total Books", value: 1240 },
@@ -136,17 +266,16 @@ const recentActivity = [
   "Penalty marked as paid for jane.smith@grietcollege.com",
 ];
 
-export default function App() {
+export default function Dashboard() {
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col">
-      {/* Header */}
       <header className="bg-white shadow px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-indigo-700">Gen-Lib Admin</h1>
         <nav className="space-x-6 text-indigo-600 font-medium">
           <a href="#">Dashboard</a>
           <a href="#">Books</a>
-          <a href="#">Pending Requests</a>
-          <a href="#">Processed Requests</a>
+          <a href="#">Pending</a>
+          <a href="#">Processed</a>
           <a href="#">Penalties</a>
           <a href="#">Users</a>
         </nav>
@@ -155,7 +284,6 @@ export default function App() {
       <main className="flex-1 p-6">
         <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
 
-        {/* Stats grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-10">
           {stats.map((s, i) => (
             <motion.div
@@ -166,15 +294,12 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
             >
-              <div className="text-3xl font-bold text-indigo-700">
-                {s.value}
-              </div>
+              <div className="text-3xl font-bold text-indigo-700">{s.value}</div>
               <div className="text-gray-600 mt-2 text-center">{s.label}</div>
             </motion.div>
           ))}
         </div>
 
-        {/* Recent Activity */}
         <section>
           <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
           <ul className="list-disc pl-6 space-y-2 text-gray-700">
@@ -202,50 +327,51 @@ export default function App() {
 
 ---
 
-## 7. Run the app
+## 6. App.js
+
+Replace **src/App.js**:
+
+```javascript
+import { useState } from "react";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  return isLoggedIn ? (
+    <Dashboard />
+  ) : (
+    <Login onLogin={() => setIsLoggedIn(true)} />
+  );
+}
+
+export default App;
+```
+
+---
+
+## Run Locally
 
 ```bash
 npm start
 ```
 
-You should now see a **responsive, modern dashboard** with cards and animations.
-
 ---
 
-## 8. Next Steps
-
-* Add **React Router** for multi-page navigation.
-* Connect components to live Firestore data.
-* Use Firebase authentication (redirect non-admins away).
-
----
-
-## 9. Deployment
+## Deployment (Firebase Hosting)
 
 ```bash
 npm run build
-firebase init hosting
 firebase deploy
 ```
 
 ---
 
-## Folder Structure (after setup)
+## Summary
 
-```
-genlib_admin/
-  public/
-  src/
-    firebase.js
-    App.js
-    index.css
-    index.js
-  tailwind.config.js
-  package.json
-```
+* Use **Option A** if you just need a quick demo.
+* Use **Option B** if you want Firebase Authentication (recommended for production).
+* After login, you get a modern full-page **Library Admin Dashboard**.
 
 ---
-
-This README walks you from zero to a styled interactive dashboard with Firebase connectivity.
-
-```
